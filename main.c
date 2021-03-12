@@ -21,9 +21,9 @@ int main(void)
 	// GPIOE is a structure defined in stm32f303xc.h file
 	// Define settings for each output pin using GPIOE structure
 	// GPIOE->MODER |= 0x00010000; // Set mode of each pin in port E
-	GPIOE->MODER |= 0x01010000; // Set ouput mode of both pin 8 and pin 12 are 
-	GPIOE->OTYPER &= ~(0x00000100); // Set output type for each pin required in Port E
-	GPIOE->PUPDR &= ~(0x01010000); // Set Pull up/Pull down resistor configuration for Port E
+	GPIOE->MODER |= 0x01010000; // Set ouput mode of both pin 8 and pin 12 so both are output mode
+	GPIOE->OTYPER &= ~(0x00000100); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
+	GPIOE->PUPDR &= ~(0x01010000); // Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
 	
 	// Main programme loop - make LED 4 (attached to pin PE.0) turn on and off	
 	while (1)
