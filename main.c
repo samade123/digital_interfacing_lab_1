@@ -8,8 +8,7 @@
 	
 	*/
 
-#include "stm32f3xx.h"                  // Device header
-
+#include "stm32f3xx.h" // Device header
 
 void delay(int a); // prototype for delay function
 
@@ -17,35 +16,43 @@ int main(void)
 {
 	// Enable clock on GPIO port E
 	RCC->AHBENR |= RCC_AHBENR_GPIOEEN;
-	
+
 	// GPIOE is a structure defined in stm32f303xc.h file
 	// Define settings for each output pin using GPIOE structure
 	// GPIOE->MODER |= 0x00010000; // Set mode of each pin in port E
-	GPIOE->MODER |= 0x55550000; // Set ouput mode of  pin 8-15 so both are output mode
+	GPIOE->MODER |= 0x55550000;		// Set ouput mode of  pin 8-15 so all are output mode
 	GPIOE->OTYPER &= ~(0x00000100); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
-	GPIOE->PUPDR &= ~(0x55550000); // Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
-	
-	// Main programme loop - make LED 4 (attached to pin PE.0) turn on and off	
-	while (1)
-  {
-		int delay_value = 200000;
-		GPIOE->BSRRL = 0xFF00; // resets and sets the the pins 8 and 12
-		delay(delay_value);
-		GPIOE->BSRRH = 0xFF00; 
-		delay(delay_value);
-	}
+	GPIOE->PUPDR &= ~(0x55550000);	// Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
 
+	// Main programme loop - make LED 4 (attached to pin PE.0) turn on and off
+	while (1)
+	{
+		int delay_value = 200000;
+		// GPIOE->BSRRL = 0xFF00; // resets and sets the the pins 8 and 12
+		// delay(delay_value);
+		// GPIOE->BSRRH = 0xFF00;
+		// delay(delay_value);
+		volatile int i, led;
+		for (i = 0x00000000; i < 0x000000FF; ++i)
+		{
+			led = i + 0x000000FF;
+			GPIOE->BSRRL = led; // resets and sets the the pins 8 and 12
+			delay(delay_value);
+			GPIOE->BSRRH = led;
+			delay(delay_value);
+		}
+	}
 }
 
 // Delay function to occupy processor
-void delay (int a)
+void delay(int a)
 {
-    volatile int i,j;
+	volatile int i, j;
 
-    for (i=0 ; i < a ; i++)
-    {
-        j++;
-    }
+	for (i = 0; i < a; i++)
+	{
+		j++;
+	}
 
-    return;
+	return;
 }
