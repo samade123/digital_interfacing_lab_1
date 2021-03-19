@@ -35,9 +35,9 @@ int main(void)
 	TIM3->ARR = 99; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	TIM3->CR1 |= TIM_CR1_CEN;
 
-	TIMx->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
+	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
 	// ‘Update’ Interrupt Enable (UIE) – or 0x00000001
-	NVIC_EnableIRQ(TIMx_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
+	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
 	// Main programme loop - make LED 4 (attached to pin PE.0) turn on and off
 	while (1)
@@ -69,7 +69,7 @@ void delay(int a)
 void TIMx_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) !=0) // Check interrupt source is from
-	the ‘Update’ interrupt flag
+	// the ‘Update’ interrupt flag
 	{
 	// ...INTERRUPT ACTION HERE
 	}
