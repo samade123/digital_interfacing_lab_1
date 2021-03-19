@@ -1,4 +1,4 @@
- /*
+/*
 	Pete Hubbard 2019
 	Loughborough University
 	WSC055 Lab 1
@@ -8,14 +8,12 @@
 
 	*/
 
-	// PSC = 79
-	// ARR =99
+// PSC = 799
+// ARR =99999
 
 #include "stm32f3xx.h" // Device header
 
-void delay(int a); // prototype for delay function
-void TIMx_IRQHandler();
-
+// void TIM3_IRQHandler(void);
 
 int main(void)
 {
@@ -30,49 +28,28 @@ int main(void)
 	GPIOE->MODER |= 0x55550000;		// Set ouput mode of  pin 8-15 so all are output mode
 	GPIOE->OTYPER &= ~(0x00000100); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
 	GPIOE->PUPDR &= ~(0x55550000);	// Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
+	// TIM3->CR1 &= ~CEN; // Disable TIM7 interrupt
 
-	TIM3->PSC = 79; // prescalor value in Timer ‘x’ as 100
-	TIM3->ARR = 99; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
-	TIM3->CR1 |= TIM_CR1_CEN;
-
-	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
+	TIM3->PSC = 799;   // prescalor value in Timer ‘x’ as 100
+	TIM3->ARR = 99999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// ‘Update’ Interrupt Enable (UIE) – or 0x00000001
+	TIM3->CR1 |= TIM_CR1_CEN;
+	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
+
 	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
 	// Main programme loop - make LED 4 (attached to pin PE.0) turn on and off
 	while (1)
 	{
-		int delay_value = 3000;
-		int i;
-		for (i = 0x0100; i < 0xFF00; ++i)
-		{
-			GPIOE->BSRRL = i; // resets and sets the the pins 8 and 12
-			delay(delay_value);
-			GPIOE->BSRRH = i;
-		}
 	}
 }
 
-// Delay function to occupy processor
-void delay(int a)
+
+void TIM3_IRQHandler()
 {
-	volatile int i, j;
-
-	for (i = 0; i < a; i++)
+	if ((TIM3->SR & TIM_SR_UIF) != 0) // Check interrupt source is from the ‘Update’ interrupt flag
 	{
-		j++;
+		GPIOE->ODR ^= 0xFF00; // toggle LED state
 	}
-
-	return;
-}
-
-void TIMx_IRQHandler()
-{
-	if ((TIM3->SR & TIM_SR_UIF) !=0) // Check interrupt source is from
-	// the ‘Update’ interrupt flag
-	{
-	// ...INTERRUPT ACTION HERE
-	}
-	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR
-	register
+	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
 }
