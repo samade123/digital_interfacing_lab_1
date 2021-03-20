@@ -10,6 +10,9 @@
 
 // PSC = 799
 // ARR =99999
+int a = 0x0000;
+int max = 0x00ff;
+// int i;
 
 #include "stm32f3xx.h" // Device header
 
@@ -44,12 +47,21 @@ int main(void)
 	}
 }
 
-
 void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Check interrupt source is from the ‘Update’ interrupt flag
 	{
-		GPIOE->ODR ^= 0xFF00; // toggle LED state
+		if (a > 0x0000)
+		{
+			GPIOE->ODR ^= a<<8;		 // turn LEds off
+		}
+		a = a + 1;
+		GPIOE->ODR ^= a<<8; // toggle LED state
+		if (a > max)
+		{
+			a = 0x0000; // reset led counter
+		}
 	}
 	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
+							 // GPIOE->ODR ^= a;		 // toggle LED state
 }
