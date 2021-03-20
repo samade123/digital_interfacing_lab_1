@@ -34,7 +34,7 @@ int main(void)
 	// TIM3->CR1 &= ~CEN; // Disable TIM7 interrupt
 
 	TIM3->PSC = 799;   // prescalor value in Timer ‘x’ as 100
-	TIM3->ARR = 99999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
+	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// ‘Update’ Interrupt Enable (UIE) – or 0x00000001
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
