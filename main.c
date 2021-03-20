@@ -27,13 +27,13 @@ int main(void)
 	// Main programme loop - make LED 4 (attached to pin PE.0) turn on and off
 	while (1)
 	{
-		int delay_value = 3000;
+		int delay_value = 800000;
 		int i;
-		for (i = 0x0100; i < 0xFF00; ++i)
+		for (i = 0x0000; i < 0x00FF; ++i)
 		{
-			GPIOE->BSRRL = i; // resets and sets the the pins 8 and 12
+			GPIOE->BSRRL = i <<8; // resets and sets the the pins 8 and 12
 			delay(delay_value);
-			GPIOE->BSRRH = i;
+			GPIOE->BSRRH = i <<8;
 		}
 	}
 }
