@@ -51,7 +51,7 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Check interrupt source is from the ‘Update’ interrupt flag
 	{
-		if (a > 0x0000)
+ 		if (a > 0x0000)
 		{
 			GPIOE->ODR ^= a<<8;		 // turn LEds off
 		}
