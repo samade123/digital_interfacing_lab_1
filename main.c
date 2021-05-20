@@ -17,8 +17,12 @@ int max = 0x00ff;
 #include "stm32f3xx.h" // Device header
 
 // void TIM3_IRQHandler(void);
-void ADC_init();
-void DAC_init();
+void ADC_init(void);
+void DAC_init(void);
+void ADC_start(void);
+
+uint16_t ADC1ConvertedValue = 0;
+uint16_t ADC1ConvertedVoltage = 0;
 
 int main(void)
 {
@@ -32,11 +36,13 @@ int main(void)
 	GPIOE->OTYPER &= ~(0x00000100); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
 	GPIOE->PUPDR &= ~(0x55550000);	// Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
 									// TIM3->CR1 &= ~CEN; // Disable TIM7 interrupt
-	ADC_init(void);
-	DAC_init(void);
+	DAC_init();
+	ADC_init();
+	ADC_start();
 
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
-	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
+	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000
+
 	// ‘Update’ Interrupt Enable (UIE) – or 0x00000001
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
@@ -53,14 +59,20 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Check interrupt source is from the ‘Update’ interrupt flag
 	{
+		while (!(ADC1->ISR & ADC_ISR_EOC))
+			; // Test EOC flag
 		if (a > 0x0000)
 		{
-			GPIOE->ODR ^= a << 8;	 // turn LEds off
 			DAC1->DHR12R1 ^= a << 8; // turn LEds off
+			GPIOE->ODR ^= ADC1->DR;	 // turn LEds off
+									 // GPIOE->ODR ^= a << 8;	 // turn LEds off
 		}
 		a = a + 1;
-		GPIOE->ODR ^= a << 8;	 // toggle LED state
 		DAC1->DHR12R1 ^= a << 8; // toggle DAC state
+		// while (!(ADC1->ISR & ADC_ISR_EOC))
+		// 	;				   // Test EOC flag
+		GPIOE->ODR ^= ADC1->DR; // turn LEds off
+		// GPIOE->ODR ^= a << 8;	 // toggle LED state
 
 		if (a > max)
 		{
@@ -71,6 +83,18 @@ void TIM3_IRQHandler()
 							 // GPIOE->ODR ^= a;		 // toggle LED state
 }
 
+void ADC_start(void)
+{
+	ADC1->CR |= ADC_CR_ADSTART; // Start ADC1 Software
+
+	// while (1)
+	// {
+	while (!(ADC1->ISR & ADC_ISR_EOC))
+		;						   // Test EOC flag
+	ADC1ConvertedValue = ADC1->DR; // Get ADC1 converted data
+								   // ADC1ConvertedVoltage = (ADC1ConvertedValue * 3300) / 4096; // Compute the voltage
+								   // }
+}
 void ADC_init(void)
 {
 	ADC1->CR &= ~ADC_CR_ADVREGEN;
@@ -100,8 +124,17 @@ void ADC_init(void)
 
 	// ADC configuration
 	ADC1->CFGR |= ADC_CFGR_CONT;   // ADC_ContinuousConvMode_Enable
-	ADC1->CFGR &= ~ADC_CFGR_RES_1;   // 8-bit data resolution
+	ADC1->CFGR &= ~ADC_CFGR_RES_1; // 8-bit data resolution
 	ADC1->CFGR &= ~ADC_CFGR_ALIGN; // Right data alignment
+
+	/* ADC1 regular channel7 configuration */
+	ADC1->SQR1 |= ADC_SQR1_SQ1_2 | ADC_SQR1_SQ1_1 | ADC_SQR1_SQ1_0; // SQ1 = 0x07, start converting ch7
+	ADC1->SQR1 &= ~ADC_SQR1_L;										// ADC regular channel sequence length = 0 => 1 conversion/sequence
+	ADC1->SMPR1 |= ADC_SMPR1_SMP7_1 | ADC_SMPR1_SMP7_0;				// = 0x03 => sampling time 7.5 ADC clock cycles
+	// ADC1->SMPR1 |= ADC_SMPR1_SMP7_1 | ADC_SMPR1_SMP7_0;				// = 0x03 => sampling time 7.5 ADC clock cycles
+	ADC1->CR |= ADC_CR_ADEN; // Enable ADC1 - SET ADEN high in ADCx_CR
+	while (!ADC1->ISR & ADC_ISR_ADRD)
+		; //• Wait for ADRDY flag in ADC1_ISR
 }
 
 void DAC_init()
