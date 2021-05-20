@@ -59,6 +59,8 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Check interrupt source is from the ‘Update’ interrupt flag
 	{
+		// ADC1->CR |= ADC_CR_ADSTART;
+		// while ((ADC1->ISR & ADC_ISR_AWD2)==ADC_ISR_AWD2)
 		while (!(ADC1->ISR & ADC_ISR_EOC))
 			; // Test EOC flag
 		if (a > 0x0000)
@@ -90,6 +92,7 @@ void ADC_start(void)
 	// while (1)
 	// {
 	while (!(ADC1->ISR & ADC_ISR_EOC))
+		// while ((ADC1->ISR & ADC_ISR_AWD2)==ADC_ISR_AWD2)
 		;						   // Test EOC flag
 	ADC1ConvertedValue = ADC1->DR; // Get ADC1 converted data
 								   // ADC1ConvertedVoltage = (ADC1ConvertedValue * 3300) / 4096; // Compute the voltage
@@ -120,7 +123,7 @@ void ADC_init(void)
 
 	// ADC Channel configuration PC1 in analog mode
 	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // GPIOC Periph clock enable
-	GPIOC->MODER |= 0x00000004;		   // Configure ADC Channel7 as analog input
+	GPIOC->MODER |= 0x0000000F;		   // Configure ADC Channel7 as analog input
 
 	// ADC configuration
 	ADC1->CFGR |= ADC_CFGR_CONT;   // ADC_ContinuousConvMode_Enable
@@ -141,7 +144,8 @@ void DAC_init()
 {
 	//DAC Start-up Procedure:
 	RCC->APB1ENR |= RCC_APB1ENR_DAC1EN;
-	GPIOA->MODER |= 0x00000A00; // Set ouput mode of  pin 4 and 5 to analogue mode
+	GPIOA->MODER |= 0x00000F00; // Set ouput mode of  pin 4 and 5 to analogue mode
+	// GPIOA->MODER |= 0x00000A00; // Set ouput mode of  pin 4 and 5 to analogue mode
 								// Disable the ‘buffer’ function in the DAC control register
 	DAC1->CR |= DAC_CR_BOFF1;
 	// Enable DAC peripheral
