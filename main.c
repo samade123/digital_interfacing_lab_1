@@ -59,21 +59,21 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Check interrupt source is from the ‘Update’ interrupt flag
 	{
-		// ADC1->CR |= ADC_CR_ADSTART;
+		ADC1->CR |= ADC_CR_ADSTART;
 		// while ((ADC1->ISR & ADC_ISR_AWD2)==ADC_ISR_AWD2)
 		while (!(ADC1->ISR & ADC_ISR_EOC))
 			; // Test EOC flag
 		if (a > 0x0000)
 		{
 			DAC1->DHR12R1 ^= a << 8; // turn LEds off
-			GPIOE->ODR ^= ADC1->DR;	 // turn LEds off
+			GPIOE->ODR = ADC1->DR;	 // turn LEds off
 									 // GPIOE->ODR ^= a << 8;	 // turn LEds off
 		}
 		a = a + 1;
 		DAC1->DHR12R1 ^= a << 8; // toggle DAC state
 		// while (!(ADC1->ISR & ADC_ISR_EOC))
 		// 	;				   // Test EOC flag
-		GPIOE->ODR ^= ADC1->DR; // turn LEds off
+		GPIOE->ODR = ADC1->DR; // turn LEds off
 		// GPIOE->ODR ^= a << 8;	 // toggle LED state
 
 		if (a > max)
@@ -100,11 +100,11 @@ void ADC_start(void)
 }
 void ADC_init(void)
 {
-	ADC1->CR &= ~ADC_CR_ADVREGEN;
-	ADC1->CR |= ADC_CR_ADVREGEN_0;
+	ADC1->CR &= ~ADC_CR_ADVREGEN; // reset state
+	ADC1->CR |= ADC_CR_ADVREGEN_0; // enable state
 
 	int i = 0;
-	while (i < 100) //delay for 10 usecond
+	while (i <200) //delay for 10 usecond
 	{
 		// cout << i << "\n";
 		i++;
@@ -116,25 +116,24 @@ void ADC_init(void)
 	while (ADC1->CR & ADC_CR_ADCAL)
 		; // wait until calibration done
 	// calibration_value = ADC1->CALFACT; // Get Calibration Value ADC1
-
 	RCC->CFGR2 |= RCC_CFGR2_ADCPRE12_DIV2; // Configure the ADC clock
 	RCC->AHBENR |= RCC_AHBENR_ADC12EN;	   // Enable ADC1 clock
 	ADC1_2_COMMON->CCR |= 0x00010000;
 
+
 	// ADC Channel configuration PC1 in analog mode
 	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // GPIOC Periph clock enable
-	GPIOC->MODER |= 0x0000000F;		   // Configure ADC Channel7 as analog input
+	GPIOC->MODER |= 0x0000000C;		   // Configure ADC Channel7 as analog input
 
 	// ADC configuration
-	ADC1->CFGR |= ADC_CFGR_CONT;   // ADC_ContinuousConvMode_Enable
-	ADC1->CFGR &= ~ADC_CFGR_RES_1; // 8-bit data resolution
+	ADC1->CFGR |= ~ADC_CFGR_CONT;   // 0: Single conversion mode
+	ADC1->CFGR &= ADC_CFGR_RES_1; // 8-bit data resolution
 	ADC1->CFGR &= ~ADC_CFGR_ALIGN; // Right data alignment
 
 	/* ADC1 regular channel7 configuration */
 	ADC1->SQR1 |= ADC_SQR1_SQ1_2 | ADC_SQR1_SQ1_1 | ADC_SQR1_SQ1_0; // SQ1 = 0x07, start converting ch7
 	ADC1->SQR1 &= ~ADC_SQR1_L;										// ADC regular channel sequence length = 0 => 1 conversion/sequence
-	ADC1->SMPR1 |= ADC_SMPR1_SMP7_1 | ADC_SMPR1_SMP7_0;				// = 0x03 => sampling time 7.5 ADC clock cycles
-	// ADC1->SMPR1 |= ADC_SMPR1_SMP7_1 | ADC_SMPR1_SMP7_0;				// = 0x03 => sampling time 7.5 ADC clock cycles
+	ADC1->SMPR1 |= ADC_SMPR1_SMP7_1 | ADC_SMPR1_SMP7_0;	 //011: 7.5 ADC clock cycles			// = 0x03 => sampling time 7.5 ADC clock cycles
 	ADC1->CR |= ADC_CR_ADEN; // Enable ADC1 - SET ADEN high in ADCx_CR
 	while (!ADC1->ISR & ADC_ISR_ADRD)
 		; //• Wait for ADRDY flag in ADC1_ISR
