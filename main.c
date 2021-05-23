@@ -19,10 +19,7 @@ int max = 0x00ff;
 // void TIM3_IRQHandler(void);
 void ADC_init(void);
 void DAC_init(void);
-void ADC_start(void);
-
-uint16_t ADC1ConvertedValue = 0;
-uint16_t ADC1ConvertedVoltage = 0;
+void intr_btn(void);
 
 int main(void)
 {
@@ -40,6 +37,7 @@ int main(void)
 									// TIM3->CR1 &= ~CEN; // Disable TIM7 interrupt
 
 	GPIOE->AFR[1] |= 0x0202020; //Setting PE.8-10 to output TIM1_CH1 is obtained using the following command
+	intr_btn();
 
 	TIM1->PSC = 799; // prescalor value in Timer ‘x’ as 100
 	TIM1->ARR = 9;	 // Auto-Reset Register of Timer ‘x’ set to 1000
@@ -47,15 +45,42 @@ int main(void)
 
 	TIM1->CCMR1 |= 0x00006060; // The followed sets channel 1-2 to be standard PWM mode:
 	TIM1->CCMR2 |= 0x00000060; // The followed sets channel 3 to be standard PWM mode:
-	TIM1->CCR1 = 1;		   //Sets on time to 10 clock pulses
+	TIM1->CCR1 = 1;			   //Sets on time to 10 clock pulses
 	TIM1->CCR2 = 5;
 	TIM1->CCR3 = 9;
 	TIM1->BDTR |= TIM_BDTR_MOE;
 	TIM1->CCER |= TIM_CCER_CC1E | TIM_CCER_CC2E | TIM_CCER_CC3E; //. The following enables output for Channel 1:s
 
 	TIM1->CR1 |= TIM_CR1_CEN; //Enable Timer
-	
+
 	while (1)
 	{
 	}
 }
+
+void intr_btn(void)
+{
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //Enable the system configuration controller to be connected to a system clock
+	EXTI->IMR |= EXTI_IMR_MR0;			  // . The following unmasks EXTI0:
+	EXTI->RTSR |= EXTI_RTSR_TR0;		  //. The following sets EXTI0 to generate an interrupt through a rising edge:
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;
+	NVIC_EnableIRQ(EXTI0_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
+	NVIC_SetPriority(EXTI0_IRQn, 100);
+}
+
+void EXTI0_IRQHandler()
+{
+	if (EXTI->PR & EXTI_PR_PR0) // check source
+	{
+		EXTI->PR |= EXTI_PR_PR0; // clear flag*
+		if (TIM1->CCR1 == 10) // increment intensity of led.
+		{
+			TIM1->CCR1 = 0;
+		}
+		else
+		{
+			TIM1->CCR1 += 1;
+		}
+	}
+};
+
