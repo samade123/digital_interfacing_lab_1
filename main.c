@@ -55,19 +55,19 @@ void TIM3_IRQHandler()
 		switch (state)
 		{
 		case 0:
-			GPIOE->BSRRH = 0x00000100; // turn LEds off
+			GPIOE->ODR ^= PIN8 << 8; // turn LEds off
 			state = state + 1;
 			break;
 		case 1:
-			GPIOE->BSRRH  = 0x00000200; // turn LEds off
+			GPIOE->ODR ^= PIN9 << 8; // turn LEds off
 			state = state + 1;
 			break;
 		case 2:
-			GPIOE->BSRRL = 0x00000100; // turn LEds off
+			GPIOE->ODR ^= PIN8 << 8; // turn LEds off
 			state = state + 1;
 			break;
 		case 3:
-			GPIOE->BSRRL = 0x00000200; // turn LEds off
+			GPIOE->ODR ^= PIN9 << 8; // turn LEds off
 			state = 0;
 			break;
 		}
