@@ -153,14 +153,14 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 			pin9_state = false;
 		}
 
-		if (pin8_state ^ pin9_state)
-		{
-			counterDecrement();
-		}
-		else
-		{
-			counterIncrement();
-		}
+		// if (pin8_state ^ pin9_state)
+		// {
+		// 	counterDecrement();
+		// }
+		// else
+		// {
+		// 	counterIncrement();
+		// }
 	}
 };
 
@@ -217,6 +217,6 @@ void counterDecrement(void)
 		counter = counter - 1;
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = counter + PIN11 - 1;
+	new_odr = counter * PIN11;
 	// GPIOE->ODR = new_odr << 8 | store_odr;
 }
