@@ -8,6 +8,7 @@ int counter = 0x0000;
 int max = 0x00ff;
 int state, store_odr, new_odr, old_odr = 0;
 bool pin8_state, pin9_state = false;
+int forward = 1;
 #define PIN14 0x0040u
 #define PIN13 0x0020u
 #define PIN12 0x0010u
@@ -41,7 +42,7 @@ int main(void)
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
-	GPIOE->ODR ^= a << 8;		// turn LEds off
+	// GPIOE->ODR ^= a << 8;		// turn LEds off
 
 	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
@@ -61,25 +62,57 @@ void TIM3_IRQHandler()
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
 			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
 			// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
-			state = state + 1;
+			if (forward)
+			{
+
+				state = state + 1;
+			}
+			else
+			{
+				state = 3;
+			}
 			break;
 		case 1:
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
 			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
-			state = state + 1;
+			if (forward)
+			{
+
+				state = state + 1;
+			}
+			else
+			{
+				state = state-1;
+			}
 			break;
 		case 2:
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
 			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
-			state = state + 1;
+			if (forward)
+			{
+
+				state = state + 1;
+			}
+			else
+			{
+				state = state-1;
+			}
 			break;
 		case 3:
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
-			state = 0;
+			if (forward)
+			{
+
+				state = 0;
+			}
+			else
+			{
+				state = state-1;
+			}
 			break;
 		}
 	}
@@ -111,7 +144,7 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 		EXTI->PR = EXTI_PR_PR0; // clear flag*
 
 		// GPIOE->ODR ^= PIN11 << 8; // turn LEds off
-		if ((GPIOA->IDR & (PIN8 << 8)) == (PIN8 << 8))
+		if ((GPIOA->IDR & (PIN9 << 8)) == (PIN9 << 8))
 		{ //if pin 8 is high
 			pin9_state = true;
 		}
