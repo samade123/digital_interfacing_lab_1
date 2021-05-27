@@ -64,15 +64,8 @@ void TIM3_IRQHandler()
 		switch (state)
 		{
 		case 0:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
 			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8);				// reset odr count
 			GPIOE->BSRRL = (new_odr << 8);
-
-
-			// GPIOE->BSRRL = (PIN9 << 8) | (old_odr << 8); // reset odr count
-			// GPIOE->BSRRH = (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
-			// GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
-			// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
 			if (forward == true)
 			{
 
@@ -84,14 +77,8 @@ void TIM3_IRQHandler()
 			}
 			break;
 		case 1:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
 			GPIOE->BSRRH = (PIN9 << 8) | (old_odr << 8); // reset odr count
 			GPIOE->BSRRL = (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
-
-
-			// GPIOE->BSRRL = (old_odr << 8);				// reset odr count
-			// GPIOE->BSRRH = (PIN8 << 8) | (PIN9 << 8) | (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
 			if (forward == true)
 			{
 
@@ -103,14 +90,8 @@ void TIM3_IRQHandler()
 			}
 			break;
 		case 2:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
 			GPIOE->BSRRH = (old_odr << 8);				// reset odr count
 			GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_odr << 8); // turn LEds off
-
-
-			// GPIOE->BSRRL = (PIN9 << 8) |old_odr << 8;				// reset odr count
-			// GPIOE->BSRRH = (PIN9 << 8) | (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
 			if (forward == true)
 			{
 
@@ -122,16 +103,8 @@ void TIM3_IRQHandler()
 			}
 			break;
 		case 3:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-
 			GPIOE->BSRRH = (PIN8 << 8) |(old_odr << 8);				// reset odr count
 			GPIOE->BSRRL = (PIN9 << 8) | (new_odr << 8); // turn LEds off
-
-
-			// GPIOE->BSRRL = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8);				// reset odr count
-			// GPIOE->BSRRH = (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
 			if (forward == true)
 			{
 
@@ -145,7 +118,6 @@ void TIM3_IRQHandler()
 		}
 	}
 	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
-							 // GPIOE->ODR ^= a;		 // toggle LED state
 }
 
 void ext_itr_enable(void) //enabling interrupts on pin PB0
