@@ -156,17 +156,21 @@ void ext_itr_enable(void) //enabling interrupts on pin PB0
 {
 	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //Enable the system configuration controller to be connected to a system clock
 
-	EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR15; // . The following unmasks EXTI0  EXTI15:
+	EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR9 |EXTI_IMR_MR15; // . The following unmasks EXTI0  EXTI15:
 
-	EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a rising edge:
-	EXTI->FTSR |= EXTI_FTSR_TR0 | EXTI_FTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a falling edge:
+	EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR9 | EXTI_RTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a rising edge:
+	EXTI->FTSR |= EXTI_FTSR_TR0 | EXTI_FTSR_TR9 | EXTI_FTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a falling edge:
 
 	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PB;  // select exti0 as pB0
+	SYSCFG->EXTICR[2] |= SYSCFG_EXTICR3_EXTI9_PB; // select exti0 as pB1
 	SYSCFG->EXTICR[3] |= SYSCFG_EXTICR4_EXTI15_PB; // select exti0 as pB1
 	NVIC_EnableIRQ(EXTI0_IRQn);					   // Configure the NVIC to trigger the interrupt service routine
+	NVIC_EnableIRQ(EXTI9_5_IRQn);				   // Configure the NVIC to trigger the interrupt service routine
 	NVIC_EnableIRQ(EXTI15_10_IRQn);				   // Configure the NVIC to trigger the interrupt service routine
 	NVIC_SetPriority(EXTI0_IRQn, 100);
-	NVIC_SetPriority(EXTI15_10_IRQn, 101);
+	NVIC_SetPriority(EXTI9_5_IRQn, 101);
+	NVIC_SetPriority(EXTI15_10_IRQn, 102);
+	// EXTI9_5_IRQn
 }
 
 void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
@@ -174,6 +178,16 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 	if (EXTI->PR & EXTI_PR_PR0) // check source
 	{
 		EXTI->PR = EXTI_PR_PR0; // clear flag*
+
+		
+	}
+};
+
+void EXTI9_5_IRQHandler() //pin b9 connected to pin e9 (channel B)
+{
+	if (EXTI->PR & EXTI_PR_PR9) // check source
+	{
+		EXTI->PR = EXTI_PR_PR9; // clear flag*
 
 		if (start == true)
 		{
@@ -234,7 +248,7 @@ void counterIncrement(void)
 	if (start == true)
 	{
 		// forward = true;
-		if (counter == 31)
+		if (counter == 511)
 		{
 			counter = 0;
 		}
@@ -244,7 +258,7 @@ void counterIncrement(void)
 		}
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = (counter) * PIN11;
+	new_odr = (counter >> 4) * PIN11;
 }
 
 void counterDecrement(void)
@@ -254,7 +268,7 @@ void counterDecrement(void)
 		// forward = false;
 		if (counter == 0)
 		{
-			counter = 31;
+			counter = 511;
 		}
 		else
 		{
@@ -262,5 +276,5 @@ void counterDecrement(void)
 		}
 	}
 	old_odr = new_odr;				  //get previosuly on leds
-	new_odr = (counter) * PIN11; //to display on 5 leds
+	new_odr = (counter >> 4) * PIN11; //to display on 5 leds
 }
