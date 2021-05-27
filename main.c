@@ -29,6 +29,7 @@ int main(void)
 
 	// Enable clock on GPIO port E
 	RCC->AHBENR |= RCC_AHBENR_GPIOEEN;
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; //Direct pulses to clock timer
 
 	// GPIOE->MODER |= 0x00010000; // Set mode of each pin in port E
@@ -66,14 +67,14 @@ void TIM3_IRQHandler()
 		if (a > 0x0000)
 		{
 			DAC1->DHR12R1 ^= a << 8; // turn LEds off
-			GPIOE->ODR = ADC1->DR;	 // turn LEds off
+			GPIOE->ODR = ADC1->DR << 8;	 // turn LEds off
 									 // GPIOE->ODR ^= a << 8;	 // turn LEds off
 		}
 		a = a + 1;
-		DAC1->DHR12R1 ^= a << 8; // toggle DAC state
+		DAC1->DHR12R1 ^= a << 8 ; // toggle DAC state
 		// while (!(ADC1->ISR & ADC_ISR_EOC))
 		// 	;				   // Test EOC flag
-		GPIOE->ODR = ADC1->DR; // turn LEds off
+		GPIOE->ODR = ADC1->DR << 8; // turn LEds off
 		// GPIOE->ODR ^= a << 8;	 // toggle LED state
 
 		if (a > max)
@@ -143,7 +144,7 @@ void DAC_init()
 {
 	//DAC Start-up Procedure:
 	RCC->APB1ENR |= RCC_APB1ENR_DAC1EN;
-	GPIOA->MODER |= 0x00000F00; // Set ouput mode of  pin 4 and 5 to analogue mode
+	GPIOA->MODER |= 0x00000FF0; // Set ouput mode of  pin 4 and 5 to analogue mode
 	// GPIOA->MODER |= 0x00000A00; // Set ouput mode of  pin 4 and 5 to analogue mode
 								// Disable the ‘buffer’ function in the DAC control register
 	DAC1->CR |= DAC_CR_BOFF1;
