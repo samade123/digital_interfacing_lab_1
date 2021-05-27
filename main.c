@@ -21,6 +21,8 @@ void ext_itr_enable(void);
 void counterDecrement(void);
 void counterIncrement(void);
 
+// external connections are pin b15 to e8 and pin b0 to e9
+
 int main(void)
 {
 
@@ -38,8 +40,9 @@ int main(void)
 	GPIOB->MODER |= 0x00000000; // set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
 
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
-	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
+	TIM3->ARR = 99999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// setting timer interrupt to every 1 second
+	// tim_hz=Fclk/(arr+1)(psc+1)
 	ext_itr_enable();
 
 	TIM3->CR1 |= TIM_CR1_CEN;
@@ -149,7 +152,6 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 	{
 		EXTI->PR = EXTI_PR_PR0; // clear flag*
 
-		// GPIOE->ODR ^= PIN11 << 8; // turn LEds off
 		if (start == true)
 		{
 
@@ -162,14 +164,14 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 				pin9_state = false;
 			}
 
-			// if (pin8_state ^ pin9_state)
-			// {
-			// 	counterDecrement();
-			// }
-			// else
-			// {
-			// 	counterIncrement();
-			// }
+			if (pin8_state ^ pin9_state)
+			{
+				counterDecrement();
+			}
+			else
+			{
+				counterIncrement();
+			}
 		}
 	}
 };
@@ -179,8 +181,6 @@ void EXTI15_10_IRQHandler() //pin b15 connected to pin e8(channel A)
 	if (EXTI->PR & EXTI_PR_PR15) // check source
 	{
 		EXTI->PR = EXTI_PR_PR15; // clear flag*
-
-		// GPIOE->ODR ^= PIN10 << 8; // turn LEds off
 
 		if (start == true)
 		{
@@ -194,25 +194,13 @@ void EXTI15_10_IRQHandler() //pin b15 connected to pin e8(channel A)
 				pin8_state = false;
 			}
 
-			// if (pin8_state ^ pin9_state)
-			// {
-			// 	counterIncrement();
-			// }
-			// else
-			// {
-			// 	counterDecrement();
-			// }
-
-			if (pin8_state != last_pin8_state)
+			if (pin8_state ^ pin9_state)
 			{
-				if (pin9_state != pin8_state)
-				{
-					counterIncrement();
-				}
-				else
-				{
-					counterDecrement();
-				}
+				counterIncrement();
+			}
+			else
+			{
+				counterDecrement();
 			}
 		}
 	}
@@ -252,5 +240,4 @@ void counterDecrement(void)
 	}
 	old_odr = new_odr; //get previosuly on leds
 	new_odr = (counter) * PIN11;
-	// GPIOE->ODR = new_odr << 8 | store_odr;
 }
