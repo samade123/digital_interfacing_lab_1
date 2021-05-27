@@ -40,6 +40,7 @@ int main(void)
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; //Direct pulses to clock timer
 
 	GPIOE->MODER |= 0x55550000;		// Set ouput mode of  pin 8-15 so all are output mode
+	GPIOC->MODER |= 0x55550000;		// Set ouput mode of  pin 8-15 so all are output mode
 	GPIOE->OTYPER &= ~(0x00000000); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
 	GPIOE->PUPDR &= ~(0x55550000);	// Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
 	GPIOB->MODER |= 0x00000000;		// set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
@@ -102,8 +103,10 @@ void check_encoder_pos(void)
 		switch (state)
 		{
 		case 0:
+			GPIOC->BSRRH = (PIN9 << 8) | (PIN8 << 8); // reset odr count
+			GPIOE->BSRRH = (old_encoder_odr << 8); // reset odr count
 			// GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
-			// GPIOE->BSRRL = (new_encoder_odr << 8);
+			GPIOE->BSRRL = (new_encoder_odr << 8);
 			if (encoder_forward == true)
 			{
 
@@ -115,7 +118,11 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 1:
+			GPIOC->BSRRH = (PIN9 << 8); // reset odr count
+			GPIOE->BSRRH = (old_encoder_odr << 8); // reset odr count
 			// GPIOE->BSRRH = (PIN9 << 8) | (old_encoder_odr << 8); // reset odr count
+			GPIOC->BSRRL = (PIN8 << 8); // turn pin 8 on and update count
+			GPIOE->BSRRL = (new_encoder_odr << 8); // turn pin 8 on and update count
 			// GPIOE->BSRRL = (PIN8 << 8) | (new_encoder_odr << 8); // turn pin 8 on and update count
 			if (encoder_forward == true)
 			{
@@ -128,7 +135,9 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 2:
-			// GPIOE->BSRRH = (old_encoder_odr << 8);							   // reset odr count
+			GPIOE->BSRRH = (old_encoder_odr << 8);							   // reset odr count
+			GPIOE->BSRRL = (new_encoder_odr << 8); // turn LEds off
+			GPIOC->BSRRL = (PIN8 << 8) | (PIN9 << 8); // turn LEds off
 			// GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
 			if (encoder_forward == true)
 			{
@@ -142,7 +151,11 @@ void check_encoder_pos(void)
 			break;
 		case 3:
 			// GPIOE->BSRRH = (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
+			GPIOC->BSRRH = (PIN8 << 8); // reset odr count
+			GPIOE->BSRRH = (old_encoder_odr << 8); // reset odr count
 			// GPIOE->BSRRL = (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
+			GPIOC->BSRRL = (PIN9 << 8); // turn LEds off
+			GPIOE->BSRRL = (new_encoder_odr << 8); // turn LEds off
 			if (encoder_forward == true)
 			{
 
@@ -195,7 +208,7 @@ void EXTI9_5_IRQHandler() //pin b9 connected to pin e9 (channel B)
 		if (start == true)
 		{
 
-			if ((GPIOE->IDR & (PIN9 << 8)) == (PIN9 << 8))
+			if ((GPIOC->IDR & (PIN9 << 8)) == (PIN9 << 8))
 			{ //if pin 8 is high
 				pin9_state = true;
 			}
@@ -225,7 +238,7 @@ void EXTI15_10_IRQHandler() //pin b15 connected to pin e8(channel A)
 		if (start == true)
 		{
 			last_pin8_state = pin8_state;
-			if ((GPIOE->IDR & (PIN8 << 8)) == (PIN8 << 8))
+			if ((GPIOC->IDR & (PIN8 << 8)) == (PIN8 << 8))
 			{ //if pin 8 is high
 				pin8_state = true;
 			}
@@ -300,10 +313,10 @@ void ADC_start(void) //connect PC1 to PA4/5
 	DAC1->DHR12R1 = thruster_pos << 8;
 	pot_odr = (ADC1->DR >> 2) * PIN11;
 
-	GPIOE->BSRRH = pot_old_odr << 8; // reset odr count
-	GPIOE->BSRRL = pot_odr << 8; // turn LEds off
-	// GPIOE->ODR = pot_odr << 8; // turn LEds off
-	pot_old_odr = pot_odr;
+	// GPIOE->BSRRH = pot_old_odr << 8; // reset odr count
+	// GPIOE->BSRRL = pot_odr << 8; // turn LEds off
+	// // GPIOE->ODR = pot_odr << 8; // turn LEds off
+	// pot_old_odr = pot_odr;
 }
 
 // DAC1->DHR12R1 ^= a << 8; // toggle DAC state
