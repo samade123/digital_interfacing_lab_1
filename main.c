@@ -6,7 +6,7 @@
 int a = 0x0000;
 int counter = 0x0000;
 int max = 0x00ff;
-int state, store_odr, new_odr, old_odr, thruster_pos, last_thruster = 0;
+int state, store_odr, new_encoder_odr, old_encoder_odr, thruster_pos, last_thruster, ADC1ConvertedValue = 0;
 bool pin8_state, pin9_state, last_pin8_state = false;
 bool forward, thruster_forward, encoder_forward = true;
 bool start = false;
@@ -22,6 +22,9 @@ void counterDecrement(void);
 void counterIncrement(void);
 void thruster_position(void);
 void check_encoder_pos(void);
+void ADC_init(void);
+void DAC_init(void);
+void ADC_start(void);
 
 // external connections are pin b15 to e8 and pin b0 to e9
 
@@ -34,11 +37,9 @@ int main(void)
 	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;	// Enable clock on GPIO port B
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; //Direct pulses to clock timer
 
-	// GPIOE->MODER |= 0x00010000; // Set mode of each pin in port E
 	GPIOE->MODER |= 0x55550000;		// Set ouput mode of  pin 8-15 so all are output mode
 	GPIOE->OTYPER &= ~(0x00000000); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
 	GPIOE->PUPDR &= ~(0x55550000);	// Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
-
 	GPIOB->MODER |= 0x00000000; // set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
 
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
@@ -49,7 +50,9 @@ int main(void)
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
-	// GPIOE->ODR ^= a << 8;		// turn LEds off
+	DAC_init();
+	ADC_init();
+	ADC_start();
 
 	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
@@ -64,12 +67,17 @@ void TIM3_IRQHandler()
 	{
 		start = true;
 		thruster_position(); //run virtual encoder
-		check_encoder_pos();	 // check which direction thruster moving for encoder
+		check_encoder_pos(); // check which direction thruster moving for encoder
+		ADC1->CR |= ADC_CR_ADSTART;
+		while (!(ADC1->ISR & ADC_ISR_EOC))
+			;				   // Test EOC flag
+		DAC1->DHR12R1 = thruster_pos << 8;
+		// GPIOE->ODR = ADC1->DR; // turn LEds off
 	}
 	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
 }
 void thruster_position(void) //woring fine
-{ //genrate traingular waveform to simulate thruster positon
+{							 //genrate traingular waveform to simulate thruster positon
 	if (thruster_forward == true)
 	{
 		thruster_pos = thruster_pos + 1;
@@ -97,8 +105,8 @@ void check_encoder_pos(void)
 		switch (state)
 		{
 		case 0:
-			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8); // reset odr count
-			GPIOE->BSRRL = (new_odr << 8);
+			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
+			GPIOE->BSRRL = (new_encoder_odr << 8);
 			if (encoder_forward == true)
 			{
 
@@ -110,8 +118,8 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 1:
-			GPIOE->BSRRH = (PIN9 << 8) | (old_odr << 8); // reset odr count
-			GPIOE->BSRRL = (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
+			GPIOE->BSRRH = (PIN9 << 8) | (old_encoder_odr << 8); // reset odr count
+			GPIOE->BSRRL = (PIN8 << 8) | (new_encoder_odr << 8); // turn pin 8 on and update count
 			if (encoder_forward == true)
 			{
 
@@ -123,8 +131,8 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 2:
-			GPIOE->BSRRH = (old_odr << 8);							   // reset odr count
-			GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->BSRRH = (old_encoder_odr << 8);							   // reset odr count
+			GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
 			if (encoder_forward == true)
 			{
 
@@ -136,8 +144,8 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 3:
-			GPIOE->BSRRH = (PIN8 << 8) | (old_odr << 8); // reset odr count
-			GPIOE->BSRRL = (PIN9 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->BSRRH = (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
+			GPIOE->BSRRL = (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
 			if (encoder_forward == true)
 			{
 
@@ -156,13 +164,13 @@ void ext_itr_enable(void) //enabling interrupts on pin PB0
 {
 	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //Enable the system configuration controller to be connected to a system clock
 
-	EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR9 |EXTI_IMR_MR15; // . The following unmasks EXTI0  EXTI15:
+	EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR9 | EXTI_IMR_MR15; // . The following unmasks EXTI0  EXTI15:
 
 	EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR9 | EXTI_RTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a rising edge:
 	EXTI->FTSR |= EXTI_FTSR_TR0 | EXTI_FTSR_TR9 | EXTI_FTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a falling edge:
 
 	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PB;  // select exti0 as pB0
-	SYSCFG->EXTICR[2] |= SYSCFG_EXTICR3_EXTI9_PB; // select exti0 as pB1
+	SYSCFG->EXTICR[2] |= SYSCFG_EXTICR3_EXTI9_PB;  // select exti0 as pB1
 	SYSCFG->EXTICR[3] |= SYSCFG_EXTICR4_EXTI15_PB; // select exti0 as pB1
 	NVIC_EnableIRQ(EXTI0_IRQn);					   // Configure the NVIC to trigger the interrupt service routine
 	NVIC_EnableIRQ(EXTI9_5_IRQn);				   // Configure the NVIC to trigger the interrupt service routine
@@ -178,8 +186,6 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 	if (EXTI->PR & EXTI_PR_PR0) // check source
 	{
 		EXTI->PR = EXTI_PR_PR0; // clear flag*
-
-		
 	}
 };
 
@@ -257,8 +263,8 @@ void counterIncrement(void)
 			counter = counter + 1;
 		}
 	}
-	old_odr = new_odr; //get previosuly on leds
-	new_odr = (counter >> 4) * PIN11;
+	old_encoder_odr = new_encoder_odr; //get previosuly on leds
+	new_encoder_odr = (counter >> 4) * PIN11;
 }
 
 void counterDecrement(void)
@@ -275,6 +281,66 @@ void counterDecrement(void)
 			counter = counter - 1;
 		}
 	}
-	old_odr = new_odr;				  //get previosuly on leds
-	new_odr = (counter >> 4) * PIN11; //to display on 5 leds
+	old_encoder_odr = new_encoder_odr;		  //get previosuly on leds
+	new_encoder_odr = (counter >> 4) * PIN11; //to display on 5 leds
+}
+
+void DAC_init()
+{
+	//DAC Start-up Procedure:
+	RCC->APB1ENR |= RCC_APB1ENR_DAC1EN;
+	GPIOA->MODER |= 0x00000F00; // Set ouput mode of  pin 4 and 5 to analogue mode
+	// Disable the ‘buffer’ function in the DAC control register
+	DAC1->CR |= DAC_CR_BOFF1;
+	// Enable DAC peripheral
+	DAC1->CR |= DAC_CR_EN1;
+}
+void ADC_start(void)
+{
+	ADC1->CR |= ADC_CR_ADSTART; // Start ADC1 Software
+	while (!(ADC1->ISR & ADC_ISR_EOC))
+		;						   // Test EOC flag
+	ADC1ConvertedValue = ADC1->DR; // Get ADC1 converted data
+}
+
+// DAC1->DHR12R1 ^= a << 8; // toggle DAC state
+
+void ADC_init(void)
+{
+	ADC1->CR &= ~ADC_CR_ADVREGEN;  // reset state
+	ADC1->CR |= ADC_CR_ADVREGEN_0; // enable state
+
+	int i = 0;
+	while (i < 200) //delay for 10 usecond
+	{
+		// cout << i << "\n";
+		i++;
+	}
+
+	ADC1->CR &= ~ADC_CR_ADCALDIF; // calibration in Single-ended inputs Mode.
+	ADC1->CR |= ADC_CR_ADCAL;	  // Start ADC calibration
+	// Read at 1 means that a calibration in progress.
+	while (ADC1->CR & ADC_CR_ADCAL)
+		; // wait until calibration done
+	// calibration_value = ADC1->CALFACT; // Get Calibration Value ADC1
+	RCC->CFGR2 |= RCC_CFGR2_ADCPRE12_DIV2; // Configure the ADC clock
+	RCC->AHBENR |= RCC_AHBENR_ADC12EN;	   // Enable ADC1 clock
+	ADC1_2_COMMON->CCR |= 0x00010000;
+
+	// ADC Channel configuration PC1 in analog mode
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // GPIOC Periph clock enable
+	GPIOC->MODER |= 0x0000000C;		   // Configure ADC Channel7 as analog input
+
+	// ADC configuration
+	ADC1->CFGR |= ~ADC_CFGR_CONT;  // 0: Single conversion mode
+	ADC1->CFGR &= ADC_CFGR_RES_1;  // 8-bit data resolution
+	ADC1->CFGR &= ~ADC_CFGR_ALIGN; // Right data alignment
+
+	/* ADC1 regular channel7 configuration */
+	ADC1->SQR1 |= ADC_SQR1_SQ1_2 | ADC_SQR1_SQ1_1 | ADC_SQR1_SQ1_0; // SQ1 = 0x07, start converting ch7
+	ADC1->SQR1 &= ~ADC_SQR1_L;										// ADC regular channel sequence length = 0 => 1 conversion/sequence
+	ADC1->SMPR1 |= ADC_SMPR1_SMP7_1 | ADC_SMPR1_SMP7_0;				//011: 7.5 ADC clock cycles			// = 0x03 => sampling time 7.5 ADC clock cycles
+	ADC1->CR |= ADC_CR_ADEN;										// Enable ADC1 - SET ADEN high in ADCx_CR
+	while (!ADC1->ISR & ADC_ISR_ADRD)
+		; //• Wait for ADRDY flag in ADC1_ISR
 }
