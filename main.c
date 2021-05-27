@@ -27,7 +27,10 @@ void ADC_init(void);
 void DAC_init(void);
 void ADC_start(void);
 
-// external connections are pin b15 to e8 and pin b0 to e9
+/* External connections
+PC1 -> PA5
+PB15 -> PC8
+PB9 -> PC9 */
 
 int main(void)
 {
