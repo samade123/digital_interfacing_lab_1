@@ -7,6 +7,8 @@ int a = 0x0000;
 int counter = 0x0000;
 int max = 0x00ff;
 int state, store_odr, new_odr, old_odr = 0;
+int thruster_pos = 0;
+bool thruster_forward = true;
 bool pin8_state, pin9_state, last_pin8_state = false;
 bool forward = true;
 bool start = false;
@@ -20,6 +22,7 @@ bool start = false;
 void ext_itr_enable(void);
 void counterDecrement(void);
 void counterIncrement(void);
+void encoder(void);
 
 // external connections are pin b15 to e8 and pin b0 to e9
 
@@ -39,17 +42,17 @@ int main(void)
 
 	GPIOB->MODER |= 0x00000000; // set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
 
-	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
+	TIM3->PSC = 799;   // prescalor value in Timer ‘x’ as 100
 	TIM3->ARR = 99999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// setting timer interrupt to every 1 second
 	// tim_hz=Fclk/(arr+1)(psc+1)
-	ext_itr_enable();
+	// ext_itr_enable();
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
 	// GPIOE->ODR ^= a << 8;		// turn LEds off
 
-	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
+	// NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
 	while (1)
 	{
@@ -60,76 +63,26 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Use interrupt to gnerate encoder sequence on pins 8 and 9
 	{
-			start = true;
-		// 	switch (state)
-		// 	{
-		// 	case 0:
-		// 		GPIOE->BSRRL = old_odr << 8; // reset odr count
-		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-		// 		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
-		// 		// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
-		// 		if (forward == true)
-		// 		{
+		start = true;
+		thruster_position();
 
-		// 			state = state + 1;
-		// 		}
-		// 		else
-		// 		{
-		// 			state = 3;
-		// 		}
-		// 		break;
-		// 	case 1:
-		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-		// 		GPIOE->BSRRL = old_odr << 8;				// reset odr count
-		// 		GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
-		// 		// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
-		// 		if (forward == true)
-		// 		{
-
-		// 			state = state + 1;
-		// 		}
-		// 		else
-		// 		{
-		// 			state = state - 1;
-		// 		}
-		// 		break;
-		// 	case 2:
-		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-		// 		GPIOE->BSRRL = old_odr << 8;				// reset odr count
-		// 		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
-		// 		// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
-		// 		if (forward == true)
-		// 		{
-
-		// 			state = state + 1;
-		// 		}
-		// 		else
-		// 		{
-		// 			state = state - 1;
-		// 		}
-		// 		break;
-		// 	case 3:
-		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-		// 		GPIOE->BSRRL = old_odr << 8;				// reset odr count
-		// 		GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
-		// 		// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
-		// 		if (forward == true)
-		// 		{
-
-		// 			state = 0;
-		// 		}
-		// 		else
-		// 		{
-		// 			state = state - 1;
-		// 		}
-		// 		break;
-		// 	}
-		GPIOE->ODR ^= old_odr << 8;					// reset odr count
-		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
-		counterIncrement();
 	}
 	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
 							 // GPIOE->ODR ^= a;		 // toggle LED state
+}
+void thruster_position(void){
+	if (thruster_forward = true) {
+		thruster_pos = thruster_pos + 1;
+		if(thruster_pos >= 80) {
+			thruster_forward = false;
+		}
+	}
+	else {
+		thruster_pos = thruster_pos - 1;
+		if(thruster_pos <= 0) {
+			thruster_forward = true;
+		}
+	}
 }
 
 void ext_itr_enable(void) //enabling interrupts on pin PB0
@@ -242,5 +195,64 @@ void counterDecrement(void)
 		}
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = (counter) * PIN11;
+	new_odr = (counter)*PIN11;
+}
+
+void encoder(void)
+{
+	switch (state)
+	{
+	case 0:
+		GPIOE->BSRRL = old_odr << 8; // reset odr count
+		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
+		if (forward == true)
+		{
+
+			state = state + 1;
+		}
+		else
+		{
+			state = 3;
+		}
+		break;
+	case 1:
+		GPIOE->BSRRL = old_odr << 8;				// reset odr count
+		GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+		if (forward == true)
+		{
+
+			state = state + 1;
+		}
+		else
+		{
+			state = state - 1;
+		}
+		break;
+	case 2:
+		GPIOE->BSRRL = old_odr << 8;				// reset odr count
+		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
+		if (forward == true)
+		{
+
+			state = state + 1;
+		}
+		else
+		{
+			state = state - 1;
+		}
+		break;
+	case 3:
+		GPIOE->BSRRL = old_odr << 8;				// reset odr count
+		GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+		if (forward == true)
+		{
+
+			state = 0;
+		}
+		else
+		{
+			state = state - 1;
+		}
+		break;
+	}
 }
