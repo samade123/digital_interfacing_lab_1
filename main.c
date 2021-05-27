@@ -8,7 +8,7 @@ int counter = 0x0000;
 int max = 0x00ff;
 int state, store_odr, new_odr, old_odr = 0;
 bool pin8_state, pin9_state, last_pin8_state = false;
-bool forward = true;
+bool forward = false;
 bool start = false;
 #define PIN14 0x0040u
 #define PIN13 0x0020u
@@ -40,10 +40,10 @@ int main(void)
 	GPIOB->MODER |= 0x00000000; // set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
 
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
-	TIM3->ARR = 99999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
+	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// setting timer interrupt to every 1 second
 	// tim_hz=Fclk/(arr+1)(psc+1)
-	ext_itr_enable();
+	// ext_itr_enable();
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
@@ -64,9 +64,14 @@ void TIM3_IRQHandler()
 		switch (state)
 		{
 		case 0:
-			GPIOE->BSRRL = old_odr << 8; // reset odr count
 			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
+			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8);				// reset odr count
+			GPIOE->BSRRL = (new_odr << 8);
+
+
+			// GPIOE->BSRRL = (PIN9 << 8) | (old_odr << 8); // reset odr count
+			// GPIOE->BSRRH = (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
+			// GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
 			// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
 			if (forward == true)
 			{
@@ -80,8 +85,12 @@ void TIM3_IRQHandler()
 			break;
 		case 1:
 			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->BSRRH = (PIN9 << 8) | (old_odr << 8); // reset odr count
+			GPIOE->BSRRL = (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
+
+
+			// GPIOE->BSRRL = (old_odr << 8);				// reset odr count
+			// GPIOE->BSRRH = (PIN8 << 8) | (PIN9 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
 			if (forward == true)
 			{
@@ -95,8 +104,12 @@ void TIM3_IRQHandler()
 			break;
 		case 2:
 			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->BSRRH = (old_odr << 8);				// reset odr count
+			GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_odr << 8); // turn LEds off
+
+
+			// GPIOE->BSRRL = (PIN9 << 8) |old_odr << 8;				// reset odr count
+			// GPIOE->BSRRH = (PIN9 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
 			if (forward == true)
 			{
@@ -110,8 +123,14 @@ void TIM3_IRQHandler()
 			break;
 		case 3:
 			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+
+			GPIOE->BSRRH = (PIN8 << 8) |(old_odr << 8);				// reset odr count
+			GPIOE->BSRRL = (PIN9 << 8) | (new_odr << 8); // turn LEds off
+
+
+			// GPIOE->BSRRL = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8);				// reset odr count
+			// GPIOE->BSRRH = (new_odr << 8); // turn LEds off
+			// GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
 			if (forward == true)
 			{
