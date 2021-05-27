@@ -6,9 +6,9 @@
 int a = 0x0000;
 int counter = 0x0000;
 int max = 0x00ff;
-int state, store_odr, new_odr, old_odr = 0;
+int state, store_odr, new_odr, old_odr, thruster_pos, last_thruster = 0;
 bool pin8_state, pin9_state, last_pin8_state = false;
-bool forward = false;
+bool forward, thruster_forward, encoder_forward = true;
 bool start = false;
 #define PIN14 0x0040u
 #define PIN13 0x0020u
@@ -20,6 +20,8 @@ bool start = false;
 void ext_itr_enable(void);
 void counterDecrement(void);
 void counterIncrement(void);
+void thruster_position(void);
+void check_encoder_pos(void);
 
 // external connections are pin b15 to e8 and pin b0 to e9
 
@@ -43,7 +45,7 @@ int main(void)
 	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// setting timer interrupt to every 1 second
 	// tim_hz=Fclk/(arr+1)(psc+1)
-	// ext_itr_enable();
+	ext_itr_enable();
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
@@ -61,12 +63,43 @@ void TIM3_IRQHandler()
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Use interrupt to gnerate encoder sequence on pins 8 and 9
 	{
 		start = true;
+		thruster_position(); //run virtual encoder
+		check_encoder_pos();	 // check which direction thruster moving for encoder
+	}
+	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
+}
+void thruster_position(void) //woring fine
+{ //genrate traingular waveform to simulate thruster positon
+	if (thruster_forward == true)
+	{
+		thruster_pos = thruster_pos + 1;
+		if (thruster_pos >= 79)
+		{
+			thruster_forward = false;
+		}
+	}
+	else
+	{
+		thruster_pos = thruster_pos - 1;
+		if (thruster_pos <= 0)
+		{
+			thruster_forward = true;
+		}
+	}
+}
+
+void check_encoder_pos(void)
+{
+	if (thruster_pos != last_thruster)
+	{
+		encoder_forward = thruster_forward;
+
 		switch (state)
 		{
 		case 0:
-			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8);				// reset odr count
+			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_odr << 8); // reset odr count
 			GPIOE->BSRRL = (new_odr << 8);
-			if (forward == true)
+			if (encoder_forward == true)
 			{
 
 				state = state + 1;
@@ -79,7 +112,7 @@ void TIM3_IRQHandler()
 		case 1:
 			GPIOE->BSRRH = (PIN9 << 8) | (old_odr << 8); // reset odr count
 			GPIOE->BSRRL = (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
-			if (forward == true)
+			if (encoder_forward == true)
 			{
 
 				state = state + 1;
@@ -90,9 +123,9 @@ void TIM3_IRQHandler()
 			}
 			break;
 		case 2:
-			GPIOE->BSRRH = (old_odr << 8);				// reset odr count
+			GPIOE->BSRRH = (old_odr << 8);							   // reset odr count
 			GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_odr << 8); // turn LEds off
-			if (forward == true)
+			if (encoder_forward == true)
 			{
 
 				state = state + 1;
@@ -103,9 +136,9 @@ void TIM3_IRQHandler()
 			}
 			break;
 		case 3:
-			GPIOE->BSRRH = (PIN8 << 8) |(old_odr << 8);				// reset odr count
+			GPIOE->BSRRH = (PIN8 << 8) | (old_odr << 8); // reset odr count
 			GPIOE->BSRRL = (PIN9 << 8) | (new_odr << 8); // turn LEds off
-			if (forward == true)
+			if (encoder_forward == true)
 			{
 
 				state = 0;
@@ -117,7 +150,6 @@ void TIM3_IRQHandler()
 			break;
 		}
 	}
-	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
 }
 
 void ext_itr_enable(void) //enabling interrupts on pin PB0
@@ -201,8 +233,8 @@ void counterIncrement(void)
 {
 	if (start == true)
 	{
-		forward = true;
-		if (counter == 15)
+		// forward = true;
+		if (counter == 31)
 		{
 			counter = 0;
 		}
@@ -219,16 +251,16 @@ void counterDecrement(void)
 {
 	if (start == true)
 	{
-		forward = false;
+		// forward = false;
 		if (counter == 0)
 		{
-			counter = 15;
+			counter = 31;
 		}
 		else
 		{
 			counter = counter - 1;
 		}
 	}
-	old_odr = new_odr; //get previosuly on leds
-	new_odr = (counter) * PIN11;
+	old_odr = new_odr;				  //get previosuly on leds
+	new_odr = (counter) * PIN11; //to display on 5 leds
 }
