@@ -3,8 +3,9 @@
 #include "stdbool.h"
 // PSC = 799
 // ARR =99999
-int a = 0x0000;
+int odr_state = 0x0000;
 int counter, last_thruster, ADC1ConvertedValue, pot_odr, pot_old_odr = 0x0000;
+int average, old_average = 0;
 int max = 0x00ff;
 int state, store_odr, new_encoder_odr, old_encoder_odr, thruster_pos = 0;
 bool pin8_state, pin9_state, last_pin8_state = false;
@@ -55,6 +56,7 @@ int main(void)
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
 	DAC_init();
 	ADC_init();
+	GPIOE->BSRRL |= (PIN8 << 8);
 
 	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
@@ -104,9 +106,12 @@ void check_encoder_pos(void)
 		{
 		case 0:
 			GPIOC->BSRRH = (PIN9 << 8) | (PIN8 << 8); // reset odr count
-			GPIOE->BSRRH = (old_encoder_odr << 8); // reset odr count
-			// GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
-			GPIOE->BSRRL = (new_encoder_odr << 8);
+			if (odr_state == 0)
+			{
+				GPIOE->BSRRH |= (old_encoder_odr << 8); // reset odr count
+				// GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
+				GPIOE->BSRRL |= (new_encoder_odr << 8);
+			}
 			if (encoder_forward == true)
 			{
 
@@ -119,11 +124,14 @@ void check_encoder_pos(void)
 			break;
 		case 1:
 			GPIOC->BSRRH = (PIN9 << 8); // reset odr count
-			GPIOE->BSRRH = (old_encoder_odr << 8); // reset odr count
-			// GPIOE->BSRRH = (PIN9 << 8) | (old_encoder_odr << 8); // reset odr count
 			GPIOC->BSRRL = (PIN8 << 8); // turn pin 8 on and update count
-			GPIOE->BSRRL = (new_encoder_odr << 8); // turn pin 8 on and update count
-			// GPIOE->BSRRL = (PIN8 << 8) | (new_encoder_odr << 8); // turn pin 8 on and update count
+			if (odr_state == 0)
+			{
+				GPIOE->BSRRH |= (old_encoder_odr << 8); // reset odr count
+				// GPIOE->BSRRH = (PIN9 << 8) | (old_encoder_odr << 8); // reset odr count
+				GPIOE->BSRRL |= (new_encoder_odr << 8); // turn pin 8 on and update count
+														// GPIOE->BSRRL = (PIN8 << 8) | (new_encoder_odr << 8); // turn pin 8 on and update count
+			}
 			if (encoder_forward == true)
 			{
 
@@ -135,10 +143,13 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 2:
-			GPIOE->BSRRH = (old_encoder_odr << 8);							   // reset odr count
-			GPIOE->BSRRL = (new_encoder_odr << 8); // turn LEds off
 			GPIOC->BSRRL = (PIN8 << 8) | (PIN9 << 8); // turn LEds off
-			// GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
+			if (odr_state == 0)
+			{
+				GPIOE->BSRRH |= (old_encoder_odr << 8); // reset odr count
+				GPIOE->BSRRL |= (new_encoder_odr << 8); // turn LEds off
+														// GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
+			}
 			if (encoder_forward == true)
 			{
 
@@ -152,10 +163,13 @@ void check_encoder_pos(void)
 		case 3:
 			// GPIOE->BSRRH = (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
 			GPIOC->BSRRH = (PIN8 << 8); // reset odr count
-			GPIOE->BSRRH = (old_encoder_odr << 8); // reset odr count
-			// GPIOE->BSRRL = (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
 			GPIOC->BSRRL = (PIN9 << 8); // turn LEds off
-			GPIOE->BSRRL = (new_encoder_odr << 8); // turn LEds off
+			if (odr_state == 0)
+			{
+				GPIOE->BSRRH |= (old_encoder_odr << 8); // reset odr count
+				// GPIOE->BSRRL = (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
+				GPIOE->BSRRL |= (new_encoder_odr << 8); // turn LEds off
+			}
 			if (encoder_forward == true)
 			{
 
@@ -177,9 +191,9 @@ void ext_itr_enable(void) //enabling interrupts on pin PB0
 	EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR9 | EXTI_IMR_MR15; // . The following unmasks EXTI0  EXTI15:
 
 	EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR9 | EXTI_RTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a rising edge:
-	EXTI->FTSR |= EXTI_FTSR_TR0 | EXTI_FTSR_TR9 | EXTI_FTSR_TR15; //. The following sets EXTI0 and EXTI15 to generate an interrupt through a falling edge:
+	EXTI->FTSR |= EXTI_FTSR_TR9 | EXTI_FTSR_TR15;				  //. The following sets EXTI0 and EXTI15 to generate an interrupt through a falling edge:
 
-	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PB;  // select exti0 as pB0
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;  // select exti0 as pB0
 	SYSCFG->EXTICR[2] |= SYSCFG_EXTICR3_EXTI9_PB;  // select exti0 as pB1
 	SYSCFG->EXTICR[3] |= SYSCFG_EXTICR4_EXTI15_PB; // select exti0 as pB1
 	NVIC_EnableIRQ(EXTI0_IRQn);					   // Configure the NVIC to trigger the interrupt service routine
@@ -196,6 +210,31 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 	if (EXTI->PR & EXTI_PR_PR0) // check source
 	{
 		EXTI->PR = EXTI_PR_PR0; // clear flag*
+		GPIOE->BSRRH = 0xFFFF;	// reset odr count
+		if (odr_state == 2)
+		{
+			odr_state = 0;
+		}
+		else
+		{
+			odr_state = odr_state + 1;
+		}
+
+		switch (odr_state)
+		{
+		case 0:
+			GPIOE->BSRRL |= (PIN8 << 8);
+			// odr_state = odr_state + 1;
+			break;
+		case 1:
+			GPIOE->BSRRL |= (PIN9 << 8);
+			// odr_state = odr_state + 1;
+			break;
+		case 2:
+			GPIOE->BSRRL |= (PIN10 << 8);
+			// odr_state = 0;
+			break;
+		}
 	}
 };
 
@@ -274,7 +313,7 @@ void counterIncrement(void)
 		}
 	}
 	old_encoder_odr = new_encoder_odr; //get previosuly on leds
-	new_encoder_odr = (counter >> 4) * PIN11;
+	new_encoder_odr = (counter + 1 >> 4) * PIN11;
 }
 
 void counterDecrement(void)
@@ -291,8 +330,8 @@ void counterDecrement(void)
 			counter = counter - 1;
 		}
 	}
-	old_encoder_odr = new_encoder_odr;		  //get previosuly on leds
-	new_encoder_odr = (counter >> 4) * PIN11; //to display on 5 leds
+	old_encoder_odr = new_encoder_odr;			  //get previosuly on leds
+	new_encoder_odr = (counter + 1 >> 4) * PIN11; //to display on 5 leds
 }
 
 void DAC_init()
@@ -311,12 +350,23 @@ void ADC_start(void) //connect PC1 to PA4/5
 	while (!(ADC1->ISR & ADC_ISR_EOC))
 		; // Test EOC flag
 	DAC1->DHR12R1 = thruster_pos << 8;
-	pot_odr = (ADC1->DR >> 2) * PIN11;
+	pot_odr = (ADC1->DR >> 4) * PIN11;
+	if (odr_state == 1)
+	{
+		GPIOE->BSRRH = pot_old_odr << 8; // reset odr count
+		GPIOE->BSRRL = pot_odr << 8;	 // turn LEds off
+		// GPIOE->ODR = pot_odr << 8; // turn LEds off
+	}
+		pot_old_odr = pot_odr;
 
-	// GPIOE->BSRRH = pot_old_odr << 8; // reset odr count
-	// GPIOE->BSRRL = pot_odr << 8; // turn LEds off
-	// // GPIOE->ODR = pot_odr << 8; // turn LEds off
-	// pot_old_odr = pot_odr;
+	if (odr_state == 2)
+	{
+		average = ((pot_odr << 8) + (new_encoder_odr << 8)/2);
+		GPIOE->BSRRH = old_average; // reset odr count
+		GPIOE->BSRRL = average;	 // turn LEds off
+		// GPIOE->ODR = pot_odr << 8; // turn LEds off
+		old_average = old_average;
+	}
 }
 
 // DAC1->DHR12R1 ^= a << 8; // toggle DAC state
