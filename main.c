@@ -7,8 +7,9 @@ int a = 0x0000;
 int counter = 0x0000;
 int max = 0x00ff;
 int state, store_odr, new_odr, old_odr = 0;
-bool pin8_state, pin9_state = false;
-int forward = 1;
+bool pin8_state, pin9_state, last_pin8_state = false;
+bool forward = true;
+bool start = false;
 #define PIN14 0x0040u
 #define PIN13 0x0020u
 #define PIN12 0x0010u
@@ -39,6 +40,7 @@ int main(void)
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
 	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// setting timer interrupt to every 1 second
+	ext_itr_enable();
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
@@ -46,7 +48,6 @@ int main(void)
 
 	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
-	ext_itr_enable();
 	while (1)
 	{
 	}
@@ -56,13 +57,15 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Use interrupt to gnerate encoder sequence on pins 8 and 9
 	{
+		start = true;
 		switch (state)
 		{
 		case 0:
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn pin 8 on and update count
+			GPIOE->BSRRL = old_odr << 8; // reset odr count
+			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
+			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
 			// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
-			if (forward)
+			if (forward == true)
 			{
 
 				state = state + 1;
@@ -73,45 +76,48 @@ void TIM3_IRQHandler()
 			}
 			break;
 		case 1:
+			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
-			if (forward)
+			if (forward == true)
 			{
 
 				state = state + 1;
 			}
 			else
 			{
-				state = state-1;
+				state = state - 1;
 			}
 			break;
 		case 2:
+			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
-			if (forward)
+			if (forward == true)
 			{
 
 				state = state + 1;
 			}
 			else
 			{
-				state = state-1;
+				state = state - 1;
 			}
 			break;
 		case 3:
+			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
 			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
+			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
 			// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
-			if (forward)
+			if (forward == true)
 			{
 
 				state = 0;
 			}
 			else
 			{
-				state = state-1;
+				state = state - 1;
 			}
 			break;
 		}
@@ -144,23 +150,27 @@ void EXTI0_IRQHandler() //pin b0 connected to pin e9 (channel B)
 		EXTI->PR = EXTI_PR_PR0; // clear flag*
 
 		// GPIOE->ODR ^= PIN11 << 8; // turn LEds off
-		if ((GPIOA->IDR & (PIN9 << 8)) == (PIN9 << 8))
-		{ //if pin 8 is high
-			pin9_state = true;
-		}
-		else
+		if (start == true)
 		{
-			pin9_state = false;
-		}
 
-		// if (pin8_state ^ pin9_state)
-		// {
-		// 	counterDecrement();
-		// }
-		// else
-		// {
-		// 	counterIncrement();
-		// }
+			if ((GPIOE->IDR & (PIN9 << 8)) == (PIN9 << 8))
+			{ //if pin 8 is high
+				pin9_state = true;
+			}
+			else
+			{
+				pin9_state = false;
+			}
+
+			// if (pin8_state ^ pin9_state)
+			// {
+			// 	counterDecrement();
+			// }
+			// else
+			// {
+			// 	counterIncrement();
+			// }
+		}
 	}
 };
 
@@ -172,51 +182,75 @@ void EXTI15_10_IRQHandler() //pin b15 connected to pin e8(channel A)
 
 		// GPIOE->ODR ^= PIN10 << 8; // turn LEds off
 
-		if ((GPIOA->IDR & (PIN8 << 8)) == (PIN8 << 8))
-		{ //if pin 8 is high
-			pin8_state = true;
-		}
-		else
+		if (start == true)
 		{
-			pin8_state = false;
-		}
+			last_pin8_state = pin8_state;
+			if ((GPIOE->IDR & (PIN8 << 8)) == (PIN8 << 8))
+			{ //if pin 8 is high
+				pin8_state = true;
+			}
+			else
+			{
+				pin8_state = false;
+			}
 
-		if (pin8_state ^ pin9_state)
-		{
-			counterIncrement();
-		}
-		else
-		{
-			counterDecrement();
+			// if (pin8_state ^ pin9_state)
+			// {
+			// 	counterIncrement();
+			// }
+			// else
+			// {
+			// 	counterDecrement();
+			// }
+
+			if (pin8_state != last_pin8_state)
+			{
+				if (pin9_state != pin8_state)
+				{
+					counterIncrement();
+				}
+				else
+				{
+					counterDecrement();
+				}
+			}
 		}
 	}
 };
 
 void counterIncrement(void)
 {
-	if (counter == 15)
+	if (start == true)
 	{
-		counter = 0;
-	}
-	else
-	{
-		counter = counter + 1;
+		forward = true;
+		if (counter == 15)
+		{
+			counter = 0;
+		}
+		else
+		{
+			counter = counter + 1;
+		}
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = counter + PIN11 - 1;
+	new_odr = (counter) * PIN11;
 }
 
 void counterDecrement(void)
 {
-	if (counter == 0)
+	if (start == true)
 	{
-		counter = 15;
-	}
-	else
-	{
-		counter = counter - 1;
+		forward = false;
+		if (counter == 0)
+		{
+			counter = 15;
+		}
+		else
+		{
+			counter = counter - 1;
+		}
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = counter * PIN11;
+	new_odr = (counter) * PIN11;
 	// GPIOE->ODR = new_odr << 8 | store_odr;
 }
