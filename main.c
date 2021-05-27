@@ -4,9 +4,9 @@
 // PSC = 799
 // ARR =99999
 int a = 0x0000;
-int counter = 0x0000;
+int counter, last_thruster, ADC1ConvertedValue, pot_odr, pot_old_odr = 0x0000;
 int max = 0x00ff;
-int state, store_odr, new_encoder_odr, old_encoder_odr, thruster_pos, last_thruster, ADC1ConvertedValue = 0;
+int state, store_odr, new_encoder_odr, old_encoder_odr, thruster_pos = 0;
 bool pin8_state, pin9_state, last_pin8_state = false;
 bool forward, thruster_forward, encoder_forward = true;
 bool start = false;
@@ -33,14 +33,16 @@ int main(void)
 
 	// Enable clock on GPIO port E
 	RCC->AHBENR |= RCC_AHBENR_GPIOEEN;
-	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;	// Enable clock on GPIO port B
-	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;	// Enable clock on GPIO port B
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN; // Enable clock on GPIO port B
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // Enable clock on GPIO port B
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; //Direct pulses to clock timer
 
 	GPIOE->MODER |= 0x55550000;		// Set ouput mode of  pin 8-15 so all are output mode
 	GPIOE->OTYPER &= ~(0x00000000); // Set output type for each pin required in Port E(open drain for pin 8 and push pull for pin 12)
 	GPIOE->PUPDR &= ~(0x55550000);	// Set Pull up/Pull down resistor configuration for Port E(pin 8 and pin 12 both set to pull up resistor)
-	GPIOB->MODER |= 0x00000000; // set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
+	GPIOB->MODER |= 0x00000000;		// set all pins on port B to input mode(not actually needed) we will be using pin b0 and b1
 
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
 	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
@@ -52,7 +54,6 @@ int main(void)
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
 	DAC_init();
 	ADC_init();
-	ADC_start();
 
 	NVIC_EnableIRQ(TIM3_IRQn); // Enable Timer ‘x’ interrupt request in NVIC
 
@@ -68,11 +69,7 @@ void TIM3_IRQHandler()
 		start = true;
 		thruster_position(); //run virtual encoder
 		check_encoder_pos(); // check which direction thruster moving for encoder
-		ADC1->CR |= ADC_CR_ADSTART;
-		while (!(ADC1->ISR & ADC_ISR_EOC))
-			;				   // Test EOC flag
-		DAC1->DHR12R1 = thruster_pos << 8;
-		// GPIOE->ODR = ADC1->DR; // turn LEds off
+		ADC_start();
 	}
 	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
 }
@@ -105,8 +102,8 @@ void check_encoder_pos(void)
 		switch (state)
 		{
 		case 0:
-			GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
-			GPIOE->BSRRL = (new_encoder_odr << 8);
+			// GPIOE->BSRRH = (PIN9 << 8) | (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
+			// GPIOE->BSRRL = (new_encoder_odr << 8);
 			if (encoder_forward == true)
 			{
 
@@ -118,8 +115,8 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 1:
-			GPIOE->BSRRH = (PIN9 << 8) | (old_encoder_odr << 8); // reset odr count
-			GPIOE->BSRRL = (PIN8 << 8) | (new_encoder_odr << 8); // turn pin 8 on and update count
+			// GPIOE->BSRRH = (PIN9 << 8) | (old_encoder_odr << 8); // reset odr count
+			// GPIOE->BSRRL = (PIN8 << 8) | (new_encoder_odr << 8); // turn pin 8 on and update count
 			if (encoder_forward == true)
 			{
 
@@ -131,8 +128,8 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 2:
-			GPIOE->BSRRH = (old_encoder_odr << 8);							   // reset odr count
-			GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
+			// GPIOE->BSRRH = (old_encoder_odr << 8);							   // reset odr count
+			// GPIOE->BSRRL = (PIN8 << 8) | (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
 			if (encoder_forward == true)
 			{
 
@@ -144,8 +141,8 @@ void check_encoder_pos(void)
 			}
 			break;
 		case 3:
-			GPIOE->BSRRH = (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
-			GPIOE->BSRRL = (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
+			// GPIOE->BSRRH = (PIN8 << 8) | (old_encoder_odr << 8); // reset odr count
+			// GPIOE->BSRRL = (PIN9 << 8) | (new_encoder_odr << 8); // turn LEds off
 			if (encoder_forward == true)
 			{
 
@@ -289,18 +286,24 @@ void DAC_init()
 {
 	//DAC Start-up Procedure:
 	RCC->APB1ENR |= RCC_APB1ENR_DAC1EN;
-	GPIOA->MODER |= 0x00000F00; // Set ouput mode of  pin 4 and 5 to analogue mode
+	GPIOA->MODER |= 0x00000FF0; // Set ouput mode of  pin 4 and 5 to analogue mode
 	// Disable the ‘buffer’ function in the DAC control register
 	DAC1->CR |= DAC_CR_BOFF1;
 	// Enable DAC peripheral
 	DAC1->CR |= DAC_CR_EN1;
 }
-void ADC_start(void)
+void ADC_start(void) //connect PC1 to PA4/5
 {
-	ADC1->CR |= ADC_CR_ADSTART; // Start ADC1 Software
+	ADC1->CR |= ADC_CR_ADSTART;
 	while (!(ADC1->ISR & ADC_ISR_EOC))
-		;						   // Test EOC flag
-	ADC1ConvertedValue = ADC1->DR; // Get ADC1 converted data
+		; // Test EOC flag
+	DAC1->DHR12R1 = thruster_pos << 8;
+	pot_odr = (ADC1->DR >> 2) * PIN11;
+
+	GPIOE->BSRRH = pot_old_odr << 8; // reset odr count
+	GPIOE->BSRRL = pot_odr << 8; // turn LEds off
+	// GPIOE->ODR = pot_odr << 8; // turn LEds off
+	pot_old_odr = pot_odr;
 }
 
 // DAC1->DHR12R1 ^= a << 8; // toggle DAC state
@@ -328,8 +331,8 @@ void ADC_init(void)
 	ADC1_2_COMMON->CCR |= 0x00010000;
 
 	// ADC Channel configuration PC1 in analog mode
-	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // GPIOC Periph clock enable
-	GPIOC->MODER |= 0x0000000C;		   // Configure ADC Channel7 as analog input
+	// RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // GPIOC Periph clock enable
+	GPIOC->MODER |= 0x0000000C; // Configure ADC Channel7 as analog input
 
 	// ADC configuration
 	ADC1->CFGR |= ~ADC_CFGR_CONT;  // 0: Single conversion mode
