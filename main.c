@@ -21,6 +21,8 @@ void ext_itr_enable(void);
 void counterDecrement(void);
 void counterIncrement(void);
 
+// jumpers are connected between pin b15 to e9 and pin b0 to e8
+
 int main(void)
 {
 
@@ -40,7 +42,7 @@ int main(void)
 	TIM3->PSC = 799;  // prescalor value in Timer ‘x’ as 100
 	TIM3->ARR = 9999; // Auto-Reset Register of Timer ‘x’ set to 1000 counts
 	// setting timer interrupt to every 1 second
-	ext_itr_enable();
+	// ext_itr_enable();
 
 	TIM3->CR1 |= TIM_CR1_CEN;
 	TIM3->DIER |= TIM_DIER_UIE; // Set DIER register to watch out for an
@@ -57,70 +59,73 @@ void TIM3_IRQHandler()
 {
 	if ((TIM3->SR & TIM_SR_UIF) != 0) // Use interrupt to gnerate encoder sequence on pins 8 and 9
 	{
-		start = true;
-		switch (state)
-		{
-		case 0:
-			GPIOE->BSRRL = old_odr << 8; // reset odr count
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
-			// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
-			if (forward == true)
-			{
+			start = true;
+		// 	switch (state)
+		// 	{
+		// 	case 0:
+		// 		GPIOE->BSRRL = old_odr << 8; // reset odr count
+		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
+		// 		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
+		// 		// GPIOE->ODR ^= PIN8 << 8; // turn pin 8 on
+		// 		if (forward == true)
+		// 		{
 
-				state = state + 1;
-			}
-			else
-			{
-				state = 3;
-			}
-			break;
-		case 1:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
-			if (forward == true)
-			{
+		// 			state = state + 1;
+		// 		}
+		// 		else
+		// 		{
+		// 			state = 3;
+		// 		}
+		// 		break;
+		// 	case 1:
+		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
+		// 		GPIOE->BSRRL = old_odr << 8;				// reset odr count
+		// 		GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+		// 		// GPIOE->ODR ^= PIN9 << 8; // turn pin 0 on
+		// 		if (forward == true)
+		// 		{
 
-				state = state + 1;
-			}
-			else
-			{
-				state = state - 1;
-			}
-			break;
-		case 2:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
-			if (forward == true)
-			{
+		// 			state = state + 1;
+		// 		}
+		// 		else
+		// 		{
+		// 			state = state - 1;
+		// 		}
+		// 		break;
+		// 	case 2:
+		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
+		// 		GPIOE->BSRRL = old_odr << 8;				// reset odr count
+		// 		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn LEds off
+		// 		// GPIOE->ODR ^= PIN8 << 8;					// turn pin 8 off
+		// 		if (forward == true)
+		// 		{
 
-				state = state + 1;
-			}
-			else
-			{
-				state = state - 1;
-			}
-			break;
-		case 3:
-			// GPIOE->ODR ^= old_odr << 8;				// reset odr count
-			GPIOE->BSRRL = old_odr << 8;				// reset odr count
-			GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
-			// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
-			if (forward == true)
-			{
+		// 			state = state + 1;
+		// 		}
+		// 		else
+		// 		{
+		// 			state = state - 1;
+		// 		}
+		// 		break;
+		// 	case 3:
+		// 		// GPIOE->ODR ^= old_odr << 8;				// reset odr count
+		// 		GPIOE->BSRRL = old_odr << 8;				// reset odr count
+		// 		GPIOE->ODR ^= (PIN8 << 8) | (new_odr << 8); // turn LEds off
+		// 		// GPIOE->ODR ^= PIN9 << 8;					// turn pin 9 0ff
+		// 		if (forward == true)
+		// 		{
 
-				state = 0;
-			}
-			else
-			{
-				state = state - 1;
-			}
-			break;
-		}
+		// 			state = 0;
+		// 		}
+		// 		else
+		// 		{
+		// 			state = state - 1;
+		// 		}
+		// 		break;
+		// 	}
+		GPIOE->ODR ^= old_odr << 8;					// reset odr count
+		GPIOE->ODR ^= (PIN9 << 8) | (new_odr << 8); // turn pin 8 on and update count
+		counterIncrement();
 	}
 	TIM3->SR &= ~TIM_SR_UIF; // Reset ‘Update’ interrupt flag in the SR register
 							 // GPIOE->ODR ^= a;		 // toggle LED state
@@ -233,7 +238,7 @@ void counterIncrement(void)
 		}
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = (counter) * PIN11;
+	new_odr = (counter)*PIN11;
 }
 
 void counterDecrement(void)
@@ -251,6 +256,6 @@ void counterDecrement(void)
 		}
 	}
 	old_odr = new_odr; //get previosuly on leds
-	new_odr = (counter) * PIN11;
+	new_odr = (counter)*PIN11;
 	// GPIOE->ODR = new_odr << 8 | store_odr;
 }
